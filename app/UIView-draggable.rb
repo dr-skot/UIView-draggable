@@ -1,4 +1,6 @@
 class UIView
+  include Observable
+
   attr_accessor :dragBounds
   attr_reader :dragPoint
 
@@ -7,51 +9,73 @@ class UIView
   end
 
   def draggable=(draggable)
+    # p "draggable=#{draggable} when @draggable=#{@draggable}"
     return if @draggable == draggable
     if (draggable)
-      addTarget(self, action:'wasDragged:withEvent:', 
-                forControlEvents:UIControlEventTouchDragInside)
-    else
-      removeTarget(self, action:'wasDragged:withEvent:', 
-                forControlEvents:UIControlEventTouchDragInside)
+      # p "adding gesture to #{dragHandle}"
+      dragHandle.addGestureRecognizer(panGesture)
+    else  
+      # p "removing gesture from #{dragHandle}"
+      dragHandle.removeGestureRecognizer(panGesture)
     end
     @draggable = draggable
   end
 
+  def dragging?
+    @dragging ||= false
+  end
+
   def dragHandle
-    if @dragHandle
-      @dragHandle
-    else
-      self
-    end
+    @dragHandle || self
   end
   
   def dragHandle=(handle)
     handle = nil if handle == self
-    if (draggable?)
-      draggable = false
+    if (self.draggable?)
+      self.draggable = false
       @dragHandle = handle
-      draggable = true
+      self.draggable = true
     else
       @dragHandle = handle
     end
   end
 
-  def wasDragged(sender, withEvent:event)
-    point = event.allTouches.anyObject.locationInView(superview)
-    x = point.x
-    y = point.y
-    if (dragBounds)
-      xMin = dragBounds.origin.x
-      xMax = xMin + dragBounds.size.width
-      yMin = dragBounds.origin.y
-      yMax = yMin + dragBounds.size.height
-      x = xMin if x < xMin
-      x = xMax if x > xMax
-      y = yMin if y < yMin
-      y = yMax if y > yMax
+  private
+
+  def panGesture
+    unless @panGesture
+      @panGesture = UIPanGestureRecognizer.alloc.initWithTarget self, action:'handlePanGesture:'
     end
-    @dragPoint = CGPointMake(x, y)
-    self.center = @dragPoint
+    @panGesture
   end
+
+  def handlePanGesture(sender)
+    if sender.state == UIGestureRecognizerStateBegan
+      @dragStart = self.center
+      @dragPoint = self.center
+      fire :willStartDrag
+      @dragging = true
+    elsif sender.state == UIGestureRecognizerStateEnded
+      @dragging = false
+      fire :didStopDrag
+    else
+      translate = sender.translationInView self
+      x = @dragStart.x + translate.x
+      y = @dragStart.y + translate.y
+      if dragBounds
+        xMin = dragBounds.origin.x
+        xMax = xMin + dragBounds.size.width
+        yMin = dragBounds.origin.y
+        yMax = yMin + dragBounds.size.height
+        x = xMin if x < xMin
+        x = xMax if x > xMax
+        y = yMin if y < yMin
+        y = yMax if y > yMax
+      end
+      @dragPoint = CGPointMake(x, y)
+      self.center = @dragPoint
+      fire :didDrag
+    end
+  end
+
 end
