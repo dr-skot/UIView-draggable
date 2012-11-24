@@ -21,4 +21,4 @@ You can constrain dragging to a certain rectangle with
 
 ## Dependencies
 
-Uses my Observable mixin, also available on GitHub.
+Uses my [Observable](https://github.com/dr-skot/RubyMotion-commons/blob/master/Observable.rb) mixin, also available on GitHub.
